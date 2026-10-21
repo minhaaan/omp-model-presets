@@ -110,7 +110,7 @@ The first time a preset is applied to the global or project scope, the plugin sn
 
 The plugin replaces the complete `modelRoles` mapping at the selected scope, including `default`, `slow`, `smol`, `plan`, `advisor`, `task`, `designer`, `vision`, `commit`, `tiny`, and `spark`.
 
-Before applying a preset, it verifies that every model resolves in OMP. When the selected scope becomes effective, it switches the active model immediately; the roles take effect in the running OMP without a reload.
+Before applying a preset, it verifies that every chat model role resolves in OMP. The `judge` and `web` roles are the exception: OMP resolves them outside its chat model registry (a TypeSafe Jev judge, a web-search provider such as `web/deepseek`), so the plugin writes their values unchanged without validating them. When the selected scope becomes effective, it switches the active model immediately; the roles take effect in the running OMP without a reload.
 
 Your provider credentials and access to the configured models must already be available in OMP.
 

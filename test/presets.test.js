@@ -382,6 +382,7 @@ test("presets keep judge and web roles that the chat model registry cannot resol
 
   await handler("opus --scope global", ctx);
   assert.deepEqual(notices.filter(({ type }) => type === "error"), []);
+  assert.ok(notices.some(({ message, type }) => type === "info" && /applied to 3 roles/.test(message)));
   assert.deepEqual(settings.layers().global, preset);
   assert.deepEqual(selectedModel, { id: "anthropic/claude-opus-5-5" });
 
