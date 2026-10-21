@@ -2,6 +2,12 @@
 
 All notable changes to this package are documented here.
 
+## Unreleased
+
+### Fixed
+
+- Fixed presets that set the `judge` or `web` role failing to apply with `Cannot resolve judge: …` / `Cannot resolve web: …` (#1). OMP resolves those roles outside the chat model registry, so the pre-apply check now skips them and writes their values unchanged; every other role is still checked.
+
 ## 0.12.0 - 2026-10-06
 
 ### Changed

@@ -336,3 +336,61 @@ test("default restores the pre-preset base configuration", async (t) => {
   assert.deepEqual(selectedModel, { id: "anthropic/claude-sonnet-5" });
   await assert.rejects(readFile(join(agentDir, "model-presets.base.json"), "utf8"), { code: "ENOENT" });
 });
+
+test("presets keep judge and web roles that the chat model registry cannot resolve", async (t) => {
+  const agentDir = await mkdtemp(join(tmpdir(), "omp-nonchat-agent-"));
+  const cwd = await mkdtemp(join(tmpdir(), "omp-nonchat-project-"));
+  t.after(() => Promise.all([
+    rm(agentDir, { recursive: true, force: true }),
+    rm(cwd, { recursive: true, force: true }),
+  ]));
+
+  const preset = {
+    default: "anthropic/claude-opus-5-5:high",
+    judge: "openrouter/typesafe/jev-1.13",
+    web: "web/deepseek",
+  };
+  await writeFile(join(agentDir, "model-presets.json"), JSON.stringify({ opus: preset }), "utf8");
+
+  const settings = createSettings({ default: "openai-codex/gpt-5.6-sol:high" });
+  const notices = [];
+  let handler;
+  let start;
+  let selectedModel;
+  const pi = {
+    pi: { settings },
+    setLabel() {},
+    on(event, cb) { if (event === "session_start") start = cb; },
+    registerCommand(_name, registered) { handler = registered.handler; },
+    appendEntry() {},
+    async exec(_command, args) {
+      if (args[0] === "config" && args[1] === "path") return { code: 0, stdout: agentDir, stderr: "" };
+      throw new Error(`Unexpected omp invocation: ${args.join(" ")}`);
+    },
+    async setModel(model) { selectedModel = model; },
+    setThinkingLevel() {},
+  };
+  const ctx = {
+    cwd,
+    sessionManager: { getBranch: () => [] },
+    ui: { notify(message, type) { notices.push({ message, type }); }, addAutocompleteProvider() {} },
+    models: { resolve: (spec) => (spec.startsWith("anthropic/") ? { id: spec } : undefined) },
+  };
+
+  modelPresets(pi, { resolveModelRolesSetting });
+  await start({ type: "session_start" }, ctx);
+
+  await handler("opus --scope global", ctx);
+  assert.deepEqual(notices.filter(({ type }) => type === "error"), []);
+  assert.deepEqual(settings.layers().global, preset);
+  assert.deepEqual(selectedModel, { id: "anthropic/claude-opus-5-5" });
+
+  await writeFile(
+    join(agentDir, "model-presets.json"),
+    JSON.stringify({ opus: preset, broken: { ...preset, smol: "nope/missing" } }),
+    "utf8",
+  );
+  await handler("broken --scope global", ctx);
+  assert.ok(notices.some(({ message, type }) => type === "error" && message === "Cannot resolve smol: nope/missing"));
+  assert.deepEqual(settings.layers().global, preset);
+});

@@ -44,6 +44,11 @@ async function warnIfStaleModule(ctx, staleState) {
 
 const THINKING_LEVELS = new Set(["off", "minimal", "low", "medium", "high", "xhigh", "max", "auto"]);
 
+// OMP resolves these roles outside the chat model registry (judge: TypeSafe
+// Jev; web: search providers such as `web/deepseek`), so `ctx.models.resolve`
+// cannot find them even though OMP accepts them.
+const NON_CHAT_ROLES = new Set(["judge", "web"]);
+
 function splitSpec(spec) {
   const colon = spec.lastIndexOf(":");
   const suffix = colon === -1 ? "" : spec.slice(colon + 1);
@@ -711,6 +716,7 @@ export default function modelPresets(pi, { resolveModelRolesSetting = lookupMode
           const parsed = splitSpec(spec);
           const model = ctx.models.resolve(parsed.model);
           if (!model) {
+            if (NON_CHAT_ROLES.has(role)) continue;
             ctx.ui.notify(`Cannot resolve ${role}: ${parsed.model}`, "error");
             return;
           }
@@ -727,7 +733,7 @@ export default function modelPresets(pi, { resolveModelRolesSetting = lookupMode
             if (selected.thinking) pi.setThinkingLevel(selected.thinking);
           }
         }
-        ctx.ui.notify(`Preset '${action}' applied to ${resolved.size} roles for ${scope} scope`, "info");
+        ctx.ui.notify(`Preset '${action}' applied to ${Object.keys(preset).length} roles for ${scope} scope`, "info");
       } catch (error) {
         ctx.ui.notify(error instanceof Error ? error.message : String(error), "error");
       }
